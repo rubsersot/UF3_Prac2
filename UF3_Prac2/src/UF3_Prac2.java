@@ -1,10 +1,10 @@
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,7 +20,9 @@ public class UF3_Prac2 {
     private static final int DATA_NAIXEMENT = 8;
     private static final int ADRECA_POSTAL = 40;
     private static final int EMAIL = 30;
-    private static final int TOTAL = CODI + NOM + COGNOMS + DATA_NAIXEMENT + ADRECA_POSTAL + EMAIL;
+    
+    public static final String NOM_FITXER = "clients.txt";
+    public static final String NOM_TEMPORAL = "temporal.txt";
 
     public static void main(String[] args) {
         File clients = new File("clients.txt");
@@ -44,7 +46,7 @@ public class UF3_Prac2 {
         System.out.println("3. Consulta d'un client per codi");
         System.out.println("4. Modificar un client");
         System.out.println("5. Esborrar un client");
-        System.out.println("6. Lliestar tots els clients");
+        System.out.println("6. Llistar tots els clients");
         
         System.out.print("Tria una opció: ");
         return scan.nextInt();
@@ -55,9 +57,8 @@ public class UF3_Prac2 {
             switch (opcio) {
                 //Els scan.nextLine són per menjar-nos el salt de línia
                 case 1:
-                    File clients = new File("clients.txt");
                     scan.nextLine();
-                    altaClient(clients);
+                    altaClient(NOM_FITXER);
                     break;
                 case 2:
                     consultaClientPosicio();
@@ -84,18 +85,10 @@ public class UF3_Prac2 {
             opcio = mostrarMenu();
         }
     }
-
-    private static String afegirEspais(String codi){
-        int iteracions = CODI-codi.length();
-        for(int i = 0; i < iteracions; ++i){
-            codi += " ";
-        }
-        return codi;
-    }
     
-    private static void altaClient(File arxiu) {
+    private static void altaClient(String nomFitx) {
         String codi = demanarCodi();
-        codi = afegirEspais(codi);
+        codi = String.format("%-6s", codi);
         if (existeixClient(codi)) {
             System.out.println("El client ja existeix");
         }
@@ -105,7 +98,7 @@ public class UF3_Prac2 {
             String dataNaixement = demanarDataNaixement();
             String adrecaPostal = demanarAdreçaPostal();
             String email = demanarEmail();
-            escriureClient(codi, nom, cognoms, dataNaixement, adrecaPostal, email, arxiu);
+            escriureClient(codi, nom, cognoms, dataNaixement, adrecaPostal, email, nomFitx);
             System.out.println("Client registrat");
         }
     }
@@ -119,18 +112,15 @@ public class UF3_Prac2 {
 
     private static boolean existeixClient(String codi) {
         boolean existeix = false;
-        try ( BufferedReader br = new BufferedReader(new FileReader("clients.txt"))) {
-            String linea = br.readLine();
-            while (linea != null && !existeix) {
-                if (linea.substring(1, CODI+1).equals(codi)) {
-                    existeix = true;
-                }
-                else{
-                    linea = br.readLine();
-                }
+        BufferedReader br = Utils.AbrirFicheroLectura(NOM_FITXER, existeix);
+        String linea = Utils.LeerLinea(br);
+        while (linea != null && !existeix) {
+            if (linea.substring(1, CODI+1).equals(codi)) {
+                existeix = true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            else{
+                linea = Utils.LeerLinea(br);
+            }
         }
         return existeix;
     }
@@ -184,70 +174,52 @@ public class UF3_Prac2 {
         return email;
     }
 
-    private static void escriureClient(String codi, String nom, String cognoms, String dataNaixement, String adrecaPostal, String email, File arxiu) {
-        try ( FileWriter fw = new FileWriter(arxiu, true)) {
-            fw.write(" ");
-            fw.write(codi);
-            for(int i = 0; i < CODI-codi.length(); ++i){
-                fw.write(" ");
-            }
-            fw.write(nom);
-            for(int i = 0; i < NOM-nom.length(); ++i){
-                fw.write(" ");
-            }
-            fw.write(cognoms);
-            for(int i = 0; i < COGNOMS-cognoms.length(); ++i){
-                fw.write(" ");
-            }
-            fw.write(dataNaixement);
-            for(int i = 0; i < DATA_NAIXEMENT-dataNaixement.length(); ++i){
-                fw.write(" ");
-            }
-            fw.write(adrecaPostal);
-            for(int i = 0; i < ADRECA_POSTAL-adrecaPostal.length(); ++i){
-                fw.write(" ");
-            }
-            fw.write(email);
-            for(int i = 0; i < EMAIL-email.length(); ++i){
-                fw.write(" ");
-            }
-            fw.write("\n");
-            
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private static void escriureClient(String codi, String nom, String cognoms, String dataNaixement, String adrecaPostal, String email, String nomFitx) {
+        PrintWriter pw = Utils.AbrirFicheroEscritura(nomFitx, true, true);
+        //Posició 0 segons el fitxer és buida, ja que el codi comença a la posició 1
+        String result = " ";
+        result += String.format("%-6s", codi);
+        result += String.format("%-20s", nom);
+        result += String.format("%-30s", cognoms);
+        result += String.format("%-8s", dataNaixement);
+        result += String.format("%-40s", adrecaPostal);
+        result += String.format("%-30s", email);
+        pw.println(result);
+        Utils.CerrarFichero(pw);
     }
 
     private static void consultaClientPosicio() {
         System.out.print("Introdueix la posició del client: ");
         int posicio = Utils.LlegirInt();
-        try ( BufferedReader br = new BufferedReader(new FileReader("clients.txt"))) {
-            int comptador = 0;
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                if (comptador == posicio) {
-                    mostrarDades(linea);
-                }
-                comptador++;
+        BufferedReader br = Utils.AbrirFicheroLectura(NOM_FITXER, true);
+        int comptador = 0;
+        String linea = Utils.LeerLinea(br);
+        boolean trobat = false;
+        while (linea != null && !trobat) {
+            if (comptador == posicio) {
+                mostrarDades(linea);
+                trobat = true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            comptador++;
+            linea = Utils.LeerLinea(br);
         }
     }
 
     private static void consultaClientCodi() {
         System.out.print("Introdueix el codi del client: ");
         String codi = scan.nextLine();
-        codi = afegirEspais(codi);
-        try ( BufferedReader br = new BufferedReader(new FileReader("clients.txt"))) {
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                if (linea.substring(1, CODI+1).equals(codi)) {
-                    mostrarDades(linea);
-                }
+        codi = String.format("%-6s", codi);
+        BufferedReader br = Utils.AbrirFicheroLectura(NOM_FITXER, true);
+        String linea = Utils.LeerLinea(br);
+        boolean trobat = false;
+        while (linea != null && !trobat) {
+            if (linea.substring(1, CODI+1).equals(codi)) {
+                mostrarDades(linea);
+                trobat = true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            else{
+                linea = Utils.LeerLinea(br);
+            }
         }
     }
     
@@ -263,66 +235,58 @@ public class UF3_Prac2 {
     private static void modificarClient() {
         System.out.print("Introdueix el codi del client que vols modificar: ");
         String codi = scan.nextLine();
-        codi = afegirEspais(codi);
-        File original = new File("clients.txt");
-        try ( BufferedReader br = new BufferedReader(new FileReader(original))) {
-            File temporal = new File("temporal.txt");
-            FileWriter writer = new FileWriter(temporal, true);
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                if (linea.substring(1, CODI+1).equals(codi)) {
-                    mostrarDades(linea);
-                    altaClient(temporal);
-                }
-                else{
-                    writer.write(linea);
-                    writer.write("\n");
-                }
+        codi = String.format("%-6s", codi);
+        PrintWriter pw = Utils.AbrirFicheroEscritura(NOM_TEMPORAL, true, true);
+        BufferedReader br = Utils.AbrirFicheroLectura(NOM_FITXER, true);
+        String linea = Utils.LeerLinea(br);
+        while (linea != null) {
+            if (linea.substring(1, CODI+1).equals(codi)) {
+                mostrarDades(linea);
+                altaClient(NOM_TEMPORAL);
             }
-            writer.close();
-            original.delete();
-            temporal.renameTo(original);
-            
-        } catch (IOException e) {
-            e.printStackTrace();
+            else{
+                pw.println(linea);
+            }
+            linea = Utils.LeerLinea(br);
         }
+        
+        Utils.CerrarFichero(br);
+        Utils.CerrarFichero(pw);
+        Utils.BorrarFichero(NOM_FITXER);
+        Utils.RenombrarFichero(NOM_TEMPORAL, NOM_FITXER);
+        Utils.BorrarFichero(NOM_TEMPORAL);
     }
     
     private static void esborrarClient() {
+        
         System.out.print("Introdueix el codi del client que vols esborrar: ");
         String codi = scan.nextLine();
-        codi = afegirEspais(codi);
-        File original = new File("clients.txt");
-        try ( BufferedReader br = new BufferedReader(new FileReader(original))) {
-            File temporal = new File("temporal.txt");
-            FileWriter writer = new FileWriter(temporal, true);
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                if (!linea.substring(1, CODI+1).equals(codi)) {
-                    writer.write(linea);
-                    writer.write("\n");
-                }
+        codi = String.format("%-6s", codi);
+        BufferedReader br = Utils.AbrirFicheroLectura(NOM_FITXER, true);
+        PrintWriter pw = Utils.AbrirFicheroEscritura(NOM_TEMPORAL, true, true);
+        String linea = Utils.LeerLinea(br);
+        while (linea != null) {
+            if (!linea.substring(1, CODI+1).equals(codi)) {
+                pw.println(linea);
             }
-            writer.close();
-            original.delete();
-            temporal.renameTo(original);
-            
-        } catch (IOException e) {
-            e.printStackTrace();
+            linea = Utils.LeerLinea(br);
         }
+        Utils.CerrarFichero(pw);
+        Utils.CerrarFichero(br);
+        Utils.BorrarFichero(NOM_FITXER);
+        Utils.RenombrarFichero(NOM_TEMPORAL, NOM_FITXER);
+        Utils.BorrarFichero(NOM_TEMPORAL);
     }
     
     private static void llistarClients(){
-        try ( BufferedReader br = new BufferedReader(new FileReader("clients.txt"))) {
-            String linea;
-            int contador = 1;
-            while ((linea = br.readLine()) != null) {
-                System.out.println("Client " + contador);
-                mostrarDades(linea);
-                ++contador;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        BufferedReader br = Utils.AbrirFicheroLectura(NOM_FITXER, true);
+        String linea = Utils.LeerLinea(br);
+        int contador = 1;
+        while (linea != null) {
+            System.out.println("Client " + contador);
+            mostrarDades(linea);
+            ++contador;
+            linea = Utils.LeerLinea(br);
         }
     }
 
